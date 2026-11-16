@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>给你的一封信 💌</title>
+<!-- 分享卡片信息(Open Graph) -->
+<meta property="og:title" content="给你的一封信 💌">
+<meta property="og:description" content="有人给你写了一封信,快打开看看吧~">
+<meta property="og:type" content="website">
+<meta property="og:image" content="assets/stickers/59275971df493f19d7a5ec938b083d93.png">
+<meta property="og:site_name" content="给你的一封信">
+<style>
+:root{
+  --pink:#ff7eb3;
+  --pink-light:#ffd6e8;
+  --cream:#fff8f0;
+  --paper:#fffdf8;
+  --ink:#5a4a42;
+  --ink-soft:#8a7a72;
+  --accent:#ff9eb5;
+  --blue:#6ac8ff;
+  --shadow:0 12px 40px rgba(255,126,179,.25);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  color:var(--ink);
+  background:linear-gradient(160deg,#ffe3ee 0%,#fff0f5 40%,#e8f4ff 100%);
+  min-height:100vh;overflow-x:hidden;position:relative;
+}
+/* 漂浮背景 */
+.bg-float{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+.bg-float span{position:absolute;font-size:28px;opacity:.32;animation:floaty 12s ease-in-out infinite;}
+@keyframes floaty{0%,100%{transform:translateY(0) rotate(0);}50%{transform:translateY(-28px) rotate(12deg);}}
+
+.page{position:relative;z-index:2;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px 80px;}
+
+/* 卡片 */
+.card{width:100%;max-width:520px;background:var(--paper);border-radius:24px;box-shadow:var(--shadow);padding:28px 24px;border:3px solid #fff;position:relative;}
+.card h1{font-size:26px;text-align:center;color:var(--pink);margin-bottom:6px;letter-spacing:1px;}
+.card .sub{text-align:center;color:var(--ink-soft);font-size:13px;margin-bottom:20px;}
+
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:14px;color:var(--ink);margin-bottom:8px;font-weight:600;}
+.field input,.field textarea{width:100%;border:2px solid #ffe0ec;border-radius:14px;padding:12px 14px;font-size:15px;color:var(--ink);background:#fff;outline:none;transition:.2s;font-family:inherit;}
+.field input:focus,.field textarea:focus{border-color:var(--pink);box-shadow:0 0 0 4px rgba(255,126,179,.12);}
+.field textarea{resize:vertical;min-height:140px;line-height:1.7;}
+.char-count{text-align:right;font-size:12px;color:var(--ink-soft);margin-top:6px;}
+
+/* 表情包选择栏 */
+.sticker-panel{margin-top:20px;}
+.sticker-panel .sp-title{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.sticker-panel .sp-title .hint{font-weight:400;font-size:12px;color:var(--ink-soft);}
+.sticker-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;max-height:180px;overflow-y:auto;padding:4px;background:#fff8fb;border-radius:14px;border:2px dashed #ffc4da;padding:10px;}
+.sticker-grid img{width:100%;aspect-ratio:1/1;object-fit:contain;border-radius:8px;cursor:pointer;transition:.15s;background:#fff;border:2px solid transparent;}
+.sticker-grid img:hover,.sticker-grid img:active{border-color:var(--pink);transform:scale(1.08);}
+
+/* 信纸画布(写信时预览) */
+.paper-canvas-wrap{margin-top:20px;}
+.paper-canvas-wrap .pc-title{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:10px;}
+.paper-canvas{position:relative;width:100%;min-height:420px;background:#fff;border-radius:14px;border:2px solid #ffe0ec;overflow:hidden;box-shadow:inset 0 0 20px rgba(255,126,179,.05);}
+.paper-canvas .pc-text{position:absolute;top:18px;left:20px;right:20px;font-size:15px;line-height:2;color:var(--ink);white-space:pre-wrap;z-index:1;pointer-events:none;}
+.paper-canvas .pc-sign{position:absolute;right:22px;bottom:20px;font-size:14px;color:var(--ink-soft);z-index:1;pointer-events:none;}
+/* 画布上的贴纸 */
+.canvas-sticker{position:absolute;z-index:5;cursor:grab;touch-action:none;user-select:none;}
+.canvas-sticker:active{cursor:grabbing;}
+.canvas-sticker img{width:100%;height:100%;pointer-events:none;display:block;}
+.canvas-sticker .del-btn{position:absolute;top:-10px;right:-10px;width:24px;height:24px;border-radius:50%;background:#ff6aa5;color:#fff;border:2px solid #fff;font-size:14px;line-height:18px;text-align:center;cursor:pointer;display:none;z-index:6;box-shadow:0 2px 6px rgba(0,0,0,.2);}
+.canvas-sticker .rot-handle{position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);width:22px;height:22px;border-radius:50%;background:#fff;border:2px solid var(--pink);cursor:grab;display:none;z-index:7;text-align:center;font-size:13px;line-height:16px;color:var(--pink);box-shadow:0 2px 6px rgba(0,0,0,.15);}
+.canvas-sticker .rot-handle:active{cursor:grabbing;}
+.canvas-sticker.selected .del-btn{display:block;}
+.canvas-sticker.selected .rot-handle{display:block;}
+.canvas-sticker.selected{outline:2px dashed var(--pink);outline-offset:2px;border-radius:6px;}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border:none;border-radius:16px;background:linear-gradient(135deg,#ff8fbb,#ff6aa5);color:#fff;font-size:17px;font-weight:700;letter-spacing:2px;cursor:pointer;box-shadow:0 6px 18px rgba(255,106,165,.4);transition:.15s;}
+.btn:active{transform:scale(.97);}
+.btn.back{margin-top:12px;background:#fff;color:var(--pink);border:2px solid #ffe0ec;box-shadow:none;}
+.btn.blue{background:linear-gradient(135deg,#6ac8ff,#4aa8f0);box-shadow:0 6px 18px rgba(74,168,240,.4);}
+
+/* 分享 */
+#share-wrap{display:none;margin-top:18px;padding-top:18px;border-top:2px dashed #ffe0ec;}
+#share-wrap h3{font-size:15px;color:var(--ink);margin-bottom:10px;text-align:center;}
+#share-link{width:100%;padding:12px;border:2px dashed #ffc4da;border-radius:12px;background:#fff8fb;font-size:12px;color:var(--ink-soft);word-break:break-all;line-height:1.5;margin-bottom:12px;}
+.btn.copy{background:linear-gradient(135deg,#6ac8ff,#4aa8f0);box-shadow:0 6px 18px rgba(74,168,240,.4);}
+.btn.again{margin-top:12px;background:#fff;color:var(--pink);border:2px solid #ffe0ec;box-shadow:none;}
+
+/* ===== 读信页 ===== */
+#read-page{display:none;justify-content:center;}
+.envelope{position:relative;width:min(330px,82vw);height:220px;cursor:pointer;perspective:1000px;margin-bottom:30px;}
+.envelope-body{position:absolute;inset:0;background:linear-gradient(160deg,#ffb0cf,#ff8fbb);border-radius:14px;box-shadow:var(--shadow);z-index:4;}
+.envelope-flap{position:absolute;top:0;left:0;width:100%;height:100%;transform-origin:top;transition:transform .7s cubic-bezier(.4,0,.2,1);transform-style:preserve-3d;z-index:6;}
+.envelope-flap .flap-face{position:absolute;inset:0;background:linear-gradient(160deg,#ffc3d8,#ff9fc2);clip-path:polygon(0 0,100% 0,50% 60%);border-radius:14px 14px 0 0;backface-visibility:hidden;}
+.envelope-stamp{position:absolute;right:18px;top:16px;width:56px;height:56px;z-index:7;background:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 3px 8px rgba(0,0,0,.08);border:2px dashed #ffd6e8;}
+.envelope-addr{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:8;text-align:center;color:#fff;pointer-events:none;font-size:20px;font-weight:700;letter-spacing:2px;text-shadow:0 2px 6px rgba(0,0,0,.15);line-height:1.6;}
+.envelope-addr .to{font-size:13px;font-weight:400;letter-spacing:4px;color:#fff;}
+.open-btn{position:absolute;left:50%;bottom:-22px;transform:translateX(-50%);z-index:9;width:78px;height:78px;border-radius:50%;background:linear-gradient(135deg,#ffd34d,#ffb347);color:#fff;border:4px solid #fff;font-size:30px;font-weight:900;cursor:pointer;box-shadow:0 6px 16px rgba(255,179,71,.5);display:flex;align-items:center;justify-content:center;font-family:"STKaiti","KaiTi",serif;animation:pulse 1.6s infinite;}
+@keyframes pulse{0%,100%{transform:translateX(-50%) scale(1);}50%{transform:translateX(-50%) scale(1.1);}}
+.envelope.opened .envelope-flap{transform:rotateX(180deg);}
+.envelope.opened .open-btn{display:none;}
+
+/* 读信页完整信纸 */
+.full-letter{display:none;width:min(480px,92vw);background:var(--paper);border-radius:20px;box-shadow:var(--shadow);padding:34px 30px;border:3px solid #fff;margin-bottom:24px;animation:pop .6s ease;}
+@keyframes pop{from{opacity:0;transform:scale(.9) translateY(20px);}to{opacity:1;transform:scale(1) translateY(0);}}
+.full-letter .full-head{text-align:center;font-size:20px;color:var(--pink);font-weight:700;margin-bottom:6px;}
+.full-letter .full-meta{text-align:center;font-size:13px;color:var(--ink-soft);margin-bottom:20px;padding-bottom:16px;border-bottom:1px dashed #ffe0ec;}
+.full-letter .full-body{position:relative;font-size:15px;color:var(--ink);line-height:2;white-space:pre-wrap;min-height:200px;padding:10px 4px;}
+.full-letter .full-sign{text-align:right;font-size:14px;color:var(--ink-soft);margin-top:24px;}
+/* 读信页信纸上的贴纸 */
+.read-sticker{position:absolute;z-index:5;pointer-events:none;}
+.read-sticker img{width:100%;height:100%;display:block;}
+
+/* 免责声明 */
+.disclaimer{width:min(480px,92vw);margin-top:30px;font-size:11px;color:#b8a8a0;line-height:1.9;text-align:center;padding:0 10px;}
+
+/* 音乐开关 */
+.music-toggle{position:fixed;right:16px;bottom:16px;z-index:20;width:46px;height:46px;border-radius:50%;background:#fff;border:2px solid #ffe0ec;cursor:pointer;font-size:22px;box-shadow:0 4px 12px rgba(0,0,0,.1);display:none;}
+.music-toggle.playing{animation:spin 3s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+#toast{position:fixed;left:50%;bottom:40px;transform:translateX(-50%) translateY(20px);background:rgba(90,74,66,.92);color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;opacity:0;transition:.3s;z-index:50;pointer-events:none;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media (max-width:480px){
+  .card{padding:22px 18px;}
+  .envelope{height:200px;}
+  .sticker-grid{grid-template-columns:repeat(5,1fr);}
+}
+</style>
+</head>
+<body>
+
+<div class="bg-float" id="bgFloat"></div>
+
+<!-- ============ 写信页 ============ -->
+<div class="page" id="write-page">
+  <div class="card">
+    <h1>💌 给 TA 写封信</h1>
+    <div class="sub">写下想说的话,用表情包装饰信纸,生成链接发给对方吧~</div>
+
+    <div class="field"><label>寄件人(你的名字)</label><input type="text" id="sender" placeholder="例如:洛轻尘" maxlength="20"></div>
+    <div class="field"><label>收件人(对方的名字)</label><input type="text" id="receiver" placeholder="例如:小可爱" maxlength="20"></div>
+    <div class="field"><label>想对 TA 说的话</label><textarea id="content" placeholder="把心里话写在这里吧~" maxlength="800"></textarea><div class="char-count"><span id="count">0</span> / 800</div></div>
+
+    <!-- 表情包选择 -->
+    <div class="sticker-panel">
+      <div class="sp-title">🎀 表情包装饰 <span class="hint">点击添加到信纸,可拖动、点一下再点 ✕ 删除</span></div>
+      <div class="sticker-grid" id="sticker-grid"></div>
+    </div>
+
+    <!-- 信纸画布 -->
+    <div class="paper-canvas-wrap">
+      <div class="pc-title">📄 信纸预览</div>
+      <div class="paper-canvas" id="paper-canvas">
+        <div class="pc-text" id="pc-text"></div>
+        <div class="pc-sign" id="pc-sign"></div>
+      </div>
+    </div>
+
+    <button class="btn" id="btn-submit" style="margin-top:20px;">✉️ 完成,生成链接</button>
+    <button class="btn back" id="btn-back-write">← 返回</button>
+
+    <div id="share-wrap">
+      <h3>🎉 链接生成好啦!发给 TA 吧~</h3>
+      <div id="share-link"></div>
+      <button class="btn copy" id="btn-copy">🔗 复制链接</button>
+      <button class="btn again" id="btn-again">✍️ 再写一封</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 读信页 ============ -->
+<div class="page" id="read-page">
+  <div class="envelope" id="envelope">
+    <div class="envelope-body"></div>
+    <div class="envelope-flap"><div class="flap-face"></div></div>
+    <div class="envelope-stamp">🐟</div>
+    <div class="envelope-addr"><div class="to">TO · 亲启</div><div id="env-receiver"></div></div>
+    <button class="open-btn" id="btn-open">开</button>
+  </div>
+
+  <div class="full-letter" id="full-letter">
+    <div class="full-head">💌 一封信</div>
+    <div class="full-meta" id="full-meta"></div>
+    <div class="full-body" id="full-body"></div>
+    <div class="full-sign" id="full-sign"></div>
+  </div>
+
+  <button class="btn blue" id="btn-reply" style="max-width:480px;">💌 给 TA 回信</button>
+  <button class="btn again" id="btn-again-read" style="max-width:480px;">🏠 我也要写一封</button>
+
+  <div class="disclaimer" id="disclaimer">
+    本页面的表情包图片来源于网络,仅供个人学习与交流使用,不涉及任何商业盈利行为。若相关图片涉及您的权益,请与我们联系,我们将第一时间删除。<br>
+    本站内容由用户自行创作与分享,用户行为与本网址及运营方无关,由此产生的任何责任均由用户自行承担。
+  </div>
+</div>
+
+<button class="music-toggle" id="music-toggle">🎵</button>
+<div id="toast"></div>
+
+<script>
+/* ===== 漂浮背景 ===== */
+(function(){
+  var emojis=['🐱','🦈','💌','🐟','🐾','💕','⭐','🌸','🐢','✨'];
+  var bg=document.getElementById('bgFloat');
+  for(var i=0;i<16;i++){
+    var s=document.createElement('span');
+    s.textContent=emojis[i%emojis.length];
+    s.style.left=(Math.random()*94)+'%';s.style.top=(Math.random()*90)+'%';
+    s.style.fontSize=(18+Math.random()*20)+'px';
+    s.style.animationDelay=(Math.random()*8)+'s';s.style.animationDuration=(9+Math.random()*8)+'s';
+    bg.appendChild(s);
+  }
+})();
+
+/* ===== 表情包清单 ===== */
+var STICKERS=[
+  '001151d96fd28a73a5ba24ec00cbfd09','06b0237d8a2aaebace44082386f168ae',
+  '0733abbce24fb8be945861d70fd5b18c','08c1d1cc890e13987bfcf6e583387e68',
+  '0df9c8be2d817130f572e48202803010','1b62ce5b270fb39f23a1748b8e0f6af3',
+  '1d58c60278d862ed67e486d8231fc48d','3624495c1a8f91edd306263766ddec03',
+  '48adac1aa2ca2c8e24cad71d76379203','48d9ff38dd82a3ae48192bc2946fae74',
+  '59275971df493f19d7a5ec938b083d93','5a4c77101c5868069fd5c4dd39034fd0',
+  '634a8e6f02693080b611c6f0e0fa4f91','63e5ce1d90a3d666320a7a382d5c509a',
+  '676b185446705e06b1df67eca0236072','7481780df73b708ce266eb65e83ab8c7',
+  '86c1fa252138f8720afe82c371cbc27e','8b0faceef6c2444109392d3065ee018a',
+  '9259c33033cc69778d911d8848255bce','949e7ca263542b745bc0113a1ce3838c',
+  'a2461cac2f69fa46c935c4a537871c23','ad11df56b53146c62bebcb601ae62c8f',
+  'afef546cdb91e98e407ea7eb09fb688d','b136e632b289c9af0d906977c1ecc418',
+  'c114688ae12d13ec87162c911f6c71c4','c1488936dc6581b07bff706ec9d47ab8',
+  'c84987c97b909213563095e7cc2b092b','d4fa6eac90829b421e06b9f333acc627',
+  'de200790b9d4719190037c783acfba1d','e104f8c453af4b7695bd9388e8a616cb',
+  'f6e0d22832b702601cd9452fe1f2bb82','fcc4f9d57f30282c6bb38ddbdc5bbb3a'
+];
+function stickerUrl(id){return 'assets/stickers/'+id+'.png';}
+
+/* ===== 工具:URL-safe base64 编解码 ===== */
+function encodeLetter(obj){var b64=btoa(unescape(encodeURIComponent(JSON.stringify(obj))));return b64.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+function decodeLetter(str){try{str=str.replace(/-/g,'+').replace(/_/g,'/');while(str.length%4)str+='=';return JSON.parse(decodeURIComponent(escape(atob(str))));}catch(e){return null;}}
+
+/* ===== 视图切换 ===== */
+var writePage=document.getElementById('write-page'),readPage=document.getElementById('read-page');
+function showWrite(){writePage.style.display='flex';readPage.style.display='none';}
+function showRead(){writePage.style.display='none';readPage.style.display='flex';}
+
+/* ===== Toast ===== */
+var toast=document.getElementById('toast'),toastTimer=null;
+function showToast(m){toast.textContent=m;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(function(){toast.classList.remove('show');},2200);}
+
+/* ===== 音乐 ===== */
+var music=null,musicToggle=document.getElementById('music-toggle');
+function startMusic(){
+  if(music)return;
+  try{
+    music=new (window.AudioContext||window.webkitAudioContext)();
+    var gain=music.createGain();gain.gain.value=0.22;gain.connect(music.destination);
+    var notes=[523.25,659.25,783.99,659.25,587.33,698.46,880.00,698.46];
+    var idx=0;
+    function playNote(){if(!music)return;var now=music.currentTime;var o=music.createOscillator();var g=music.createGain();o.type='sine';o.frequency.value=notes[idx%notes.length];g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(0.5,now+0.06);g.gain.exponentialRampToValueAtTime(0.001,now+1.4);o.connect(g);g.connect(gain);o.start(now);o.stop(now+1.5);idx++;}
+    playNote();music.timer=setInterval(playNote,600);musicToggle.classList.add('playing');
+  }catch(e){}
+}
+function stopMusic(){if(!music)return;clearInterval(music.timer);try{music.close();}catch(e){}music=null;musicToggle.classList.remove('playing');}
+musicToggle.addEventListener('click',function(){if(music){stopMusic();musicToggle.textContent='🔇';}else{startMusic();musicToggle.textContent='🎵';}});
+
+/* ===== 写信页 ===== */
+var senderInput=document.getElementById('sender'),receiverInput=document.getElementById('receiver'),contentInput=document.getElementById('content');
+var countSpan=document.getElementById('count'),shareWrap=document.getElementById('share-wrap'),shareLink=document.getElementById('share-link');
+var pcText=document.getElementById('pc-text'),pcSign=document.getElementById('pc-sign');
+var paperCanvas=document.getElementById('paper-canvas');
+
+contentInput.addEventListener('input',function(){countSpan.textContent=contentInput.value.length;updatePreview();});
+senderInput.addEventListener('input',updatePreview);
+function updatePreview(){pcText.textContent=contentInput.value||'(在这里写下你想说的话...)';pcSign.textContent=senderInput.value?('—— '+senderInput.value):'';}
+
+/* 表情包选择栏渲染 */
+var stickerGrid=document.getElementById('sticker-grid');
+STICKERS.forEach(function(id){
+  var img=document.createElement('img');
+  img.src=stickerUrl(id);img.alt='';img.dataset.id=id;
+  img.addEventListener('click',function(){addSticker(id);});
+  stickerGrid.appendChild(img);
+});
+
+/* 信纸上的贴纸管理 */
+var placedStickers=[]; // [{id,x,y,scale,rot}] x,y为百分比(0-100),scale为缩放倍数,rot为角度
+function applyTransform(el,rec){
+  el.style.transform='translate(-50%,-50%) rotate('+(rec.rot||0)+'deg)';
+}
+function addSticker(id,x,y,scale,rot){
+  var canvasW=paperCanvas.clientWidth,canvasH=paperCanvas.clientHeight;
+  if(!x){x=30+Math.random()*30;y=30+Math.random()*40;scale=0.8;rot=0;}
+  var el=document.createElement('div');
+  el.className='canvas-sticker';
+  var size=90*scale;
+  el.style.width=size+'px';el.style.height=size+'px';
+  el.style.left=(x+'%');el.style.top=(y+'%');
+  el.dataset.id=id;
+  var rec={id:id,x:x,y:y,scale:scale,rot:rot||0,el:el};
+  applyTransform(el,rec);
+  var img=document.createElement('img');img.src=stickerUrl(id);img.draggable=false;
+  el.appendChild(img);
+  var del=document.createElement('div');del.className='del-btn';del.textContent='✕';
+  del.addEventListener('click',function(e){e.stopPropagation();el.remove();removePlaced(id,x,y);});
+  el.appendChild(del);
+  var rotHandle=document.createElement('div');rotHandle.className='rot-handle';rotHandle.textContent='↻';
+  el.appendChild(rotHandle);
+  // 点击选中
+  el.addEventListener('mousedown',function(){selectSticker(el);});
+  el.addEventListener('touchstart',function(){selectSticker(el);});
+  paperCanvas.appendChild(el);
+  placedStickers.push(rec);
+  makeDraggable(el,rec);
+  makeRotatable(el,rec,rotHandle);
+  return rec;
+}
+function selectSticker(el){
+  document.querySelectorAll('.canvas-sticker').forEach(function(s){s.classList.remove('selected');});
+  el.classList.add('selected');
+}
+function removePlaced(id,x,y){
+  placedStickers=placedStickers.filter(function(p){return !(p.id===id&&p.x===x&&p.y===y);});
+}
+function makeDraggable(el,rec){
+  var startX,startY,origLeft,origTop;
+  function onStart(e){
+    // 如果按的是旋转手柄,不触发拖动
+    if(e.target.classList&&e.target.classList.contains('rot-handle'))return;
+    if(e.target.classList&&e.target.classList.contains('del-btn'))return;
+    var cx=(e.touches?e.touches[0].clientX:e.clientX),cy=(e.touches?e.touches[0].clientY:e.clientY);
+    startX=cx;startY=cy;
+    origLeft=parseFloat(el.style.left);origTop=parseFloat(el.style.top);
+    selectSticker(el);
+    e.preventDefault();
+    document.addEventListener('mousemove',onMove);
+    document.addEventListener('mouseup',onEnd);
+    document.addEventListener('touchmove',onMove,{passive:false});
+    document.addEventListener('touchend',onEnd);
+  }
+  function onMove(e){
+    var cx=(e.touches?e.touches[0].clientX:e.clientX),cy=(e.touches?e.touches[0].clientY:e.clientY);
+    var dx=cx-startX,dy=cy-startY;
+    var canvasW=paperCanvas.clientWidth,canvasH=paperCanvas.clientHeight;
+    var newLeft=origLeft+(dx/canvasW*100);
+    var newTop=origTop+(dy/canvasH*100);
+    newLeft=Math.max(0,Math.min(100,newLeft));
+    newTop=Math.max(0,Math.min(100,newTop));
+    el.style.left=newLeft+'%';el.style.top=newTop+'%';
+    rec.x=newLeft;rec.y=newTop;
+  }
+  function onEnd(){document.removeEventListener('mousemove',onMove);document.removeEventListener('mouseup',onEnd);document.removeEventListener('touchmove',onMove);document.removeEventListener('touchend',onEnd);}
+  el.addEventListener('mousedown',onStart);
+  el.addEventListener('touchstart',onStart,{passive:false});
+}
+function makeRotatable(el,rec,handle){
+  function getCenter(){
+    var r=el.getBoundingClientRect();
+    return {x:r.left+r.width/2,y:r.top+r.height/2};
+  }
+  function angle(cx,cy,center){
+    return Math.atan2(cy-center.y,cx-center.x)*180/Math.PI;
+  }
+  var startAngle;
+  function onRotStart(e){
+    e.stopPropagation();
+    e.preventDefault();
+    selectSticker(el);
+    var cx=(e.touches?e.touches[0].clientX:e.clientX),cy=(e.touches?e.touches[0].clientY:e.clientY);
+    startAngle=angle(cx,cy,getCenter())-(rec.rot||0);
+    document.addEventListener('mousemove',onRotMove);
+    document.addEventListener('mouseup',onRotEnd);
+    document.addEventListener('touchmove',onRotMove,{passive:false});
+    document.addEventListener('touchend',onRotEnd);
+  }
+  function onRotMove(e){
+    var cx=(e.touches?e.touches[0].clientX:e.clientX),cy=(e.touches?e.touches[0].clientY:e.clientY);
+    var deg=angle(cx,cy,getCenter())-startAngle;
+    deg=Math.round(deg);
+    rec.rot=deg;
+    applyTransform(el,rec);
+  }
+  function onRotEnd(){document.removeEventListener('mousemove',onRotMove);document.removeEventListener('mouseup',onRotEnd);document.removeEventListener('touchmove',onRotMove);document.removeEventListener('touchend',onRotEnd);}
+  handle.addEventListener('mousedown',onRotStart);
+  handle.addEventListener('touchstart',onRotStart,{passive:false});
+}
+
+document.getElementById('btn-submit').addEventListener('click',function(){
+  var sender=senderInput.value.trim(),receiver=receiverInput.value.trim(),content=contentInput.value.trim();
+  if(!sender){showToast('请填写寄件人哦~');senderInput.focus();return;}
+  if(!receiver){showToast('请填写收件人哦~');receiverInput.focus();return;}
+  if(!content){showToast('写点什么再生成吧~');contentInput.focus();return;}
+  var stickers=placedStickers.map(function(p){return {id:p.id,x:Math.round(p.x*10)/10,y:Math.round(p.y*10)/10,scale:p.scale,rot:Math.round(p.rot||0)};});
+  var data={s:sender,r:receiver,c:content,t:stickers};
+  var code=encodeLetter(data);
+  var url=location.origin+location.pathname+'?l='+code;
+  shareLink.textContent=url;shareWrap.style.display='block';
+  shareWrap.scrollIntoView({behavior:'smooth',block:'center'});
+  showToast('链接生成成功!🎉');
+});
+
+document.getElementById('btn-copy').addEventListener('click',function(){
+  var url=shareLink.textContent;
+  var sender=senderInput.value.trim();
+  var shareText=sender+' 给你写了一封信 💌\n快打开看看吧~\n'+url;
+  copyText(shareText);
+});
+function copyText(text){
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(function(){showToast('已复制,去粘贴发给 TA 吧~');}).catch(function(){fallbackCopy(text);});}
+  else{fallbackCopy(text);}
+}
+function fallbackCopy(t){var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');showToast('已复制,去粘贴发给 TA 吧~');}catch(e){showToast('复制失败,请手动长按复制');}document.body.removeChild(ta);}
+
+document.getElementById('btn-again').addEventListener('click',function(){
+  shareWrap.style.display='none';
+  senderInput.value='';receiverInput.value='';contentInput.value='';countSpan.textContent='0';
+  document.querySelectorAll('.canvas-sticker').forEach(function(e){e.remove();});
+  placedStickers=[];updatePreview();
+});
+
+/* ===== 读信页 ===== */
+var envelope=document.getElementById('envelope'),envReceiver=document.getElementById('env-receiver');
+var fullLetter=document.getElementById('full-letter'),fullMeta=document.getElementById('full-meta'),fullBody=document.getElementById('full-body'),fullSign=document.getElementById('full-sign');
+var btnOpen=document.getElementById('btn-open'),btnReply=document.getElementById('btn-reply');
+var currentLetter=null;
+
+function loadLetter(){
+  var params=new URLSearchParams(location.search),code=params.get('l');
+  if(!code){showWrite();return;}
+  currentLetter=decodeLetter(code);
+  if(!currentLetter){showToast('这封信好像打不开,可能链接损坏了 😢');showWrite();return;}
+  showRead();
+  envelope.classList.remove('opened');
+  fullLetter.style.display='none';
+  btnReply.style.display='none';
+  musicToggle.style.display='none';
+  envReceiver.textContent=currentLetter.r+' 收';
+  fullMeta.textContent='寄件人:'+currentLetter.s+' · 收件人:'+currentLetter.r;
+  fullBody.textContent=currentLetter.c;
+  fullSign.textContent='—— '+currentLetter.s;
+}
+
+btnOpen.addEventListener('click',function(){
+  envelope.classList.add('opened');
+  startMusic();musicToggle.textContent='🎵';musicToggle.style.display='flex';
+  setTimeout(function(){
+    fullLetter.style.display='block';
+    btnReply.style.display='flex';
+    renderReadStickers();
+    setTimeout(function(){envelope.style.display='none';},300);
+  },650);
+});
+
+function renderReadStickers(){
+  fullBody.querySelectorAll('.read-sticker').forEach(function(e){e.remove();});
+  if(!currentLetter.t)return;
+  var bodyW=fullBody.clientWidth,bodyH=fullBody.clientHeight;
+  currentLetter.t.forEach(function(st){
+    var el=document.createElement('div');
+    el.className='read-sticker';
+    var size=80*st.scale;
+    el.style.width=size+'px';el.style.height=size+'px';
+    el.style.left=(st.x+'%');el.style.top=(st.y+'%');
+    el.style.transform='translate(-50%,-50%) rotate('+(st.rot||0)+'deg)';
+    var img=document.createElement('img');img.src=stickerUrl(st.id);img.draggable=false;
+    el.appendChild(img);
+    fullBody.appendChild(el);
+  });
+}
+
+btnReply.addEventListener('click',function(){
+  showWrite();
+  if(currentLetter){senderInput.value='';receiverInput.value=currentLetter.s;contentInput.value='';countSpan.textContent='0';document.querySelectorAll('.canvas-sticker').forEach(function(e){e.remove();});placedStickers=[];updatePreview();}
+});
+document.getElementById('btn-again-read').addEventListener('click',function(){showWrite();});
+document.getElementById('btn-back-write').addEventListener('click',function(){if(location.search.indexOf('l=')>=0){showRead();}else{showWrite();}});
+
+loadLetter();
+</script>
+</body>
+</html>
