@@ -43,7 +43,7 @@ export async function onRequest(context) {
   const id = params.id;
 
   if (!id || !/^[a-z0-9]{4,24}$/.test(id)) {
-    return Response.redirect(origin + '/', 302);
+    return new Response(null, { status: 302, headers: { Location: origin + '/' } });
   }
 
   let sender = '';
