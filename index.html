@@ -4,12 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>给你的一封信 💌</title>
-<!-- 分享卡片信息(Open Graph) -->
+<meta name="description" content="有人给你写了一封信，点开看看吧～">
+<!-- 分享卡片信息(Open Graph / 微信·QQ 卡片) -->
 <meta property="og:title" content="给你的一封信 💌">
-<meta property="og:description" content="有人给你写了一封信,快打开看看吧~">
+<meta property="og:description" content="有人给你写了一封信，点开看看吧～">
 <meta property="og:type" content="website">
-<meta property="og:image" content="assets/stickers/59275971df493f19d7a5ec938b083d93.png">
+<meta property="og:image" content="/og-cover.png">
+<meta property="og:image:width" content="500">
+<meta property="og:image:height" content="500">
 <meta property="og:site_name" content="给你的一封信">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="给你的一封信 💌">
+<meta name="twitter:description" content="有人给你写了一封信，点开看看吧～">
+<meta name="twitter:image" content="/og-cover.png">
 <style>
 :root{
   --pink:#ff7eb3;
@@ -103,6 +110,7 @@ body{
 @keyframes pulse{0%,100%{transform:translateX(-50%) scale(1);}50%{transform:translateX(-50%) scale(1.1);}}
 .envelope.opened .envelope-flap{transform:rotateX(180deg);}
 .envelope.opened .open-btn{display:none;}
+.open-btn:disabled{opacity:.45;cursor:not-allowed;animation:none;}
 
 /* 读信页完整信纸 */
 .full-letter{display:none;position:relative;width:min(480px,92vw);background:var(--paper);border-radius:20px;box-shadow:var(--shadow);padding:34px 34px 110px;border:3px solid #fff;margin-bottom:24px;animation:pop .6s ease;}
@@ -263,9 +271,45 @@ function decodeLetter(str){
   }catch(e){return null;}
 }
 
+/* ===== 云端短链(EdgeOne KV)===== */
+function saveLetterToKV(code,sender,receiver){
+  // 返回 Promise<id|null>;任何异常都 resolve(null),由调用方降级成长链接
+  return new Promise(function(resolve){
+    var ctrl=(typeof AbortController!=='undefined')?new AbortController():null;
+    var timer=setTimeout(function(){if(ctrl)ctrl.abort();},9000);
+    var done=function(v){clearTimeout(timer);resolve(v);};
+    try{
+      fetch('/api/letter',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({d:code,s:sender||'',r:receiver||''}),
+        signal:ctrl?ctrl.signal:undefined
+      }).then(function(r){
+        if(!r.ok)return done(null);
+        return r.json().then(function(j){done(j&&j.id?j.id:null);}).catch(function(){done(null);});
+      }).catch(function(){done(null);});
+    }catch(e){done(null);}
+  });
+}
+function loadLetterFromKV(id){
+  return fetch('/api/letter?id='+encodeURIComponent(id),{cache:'no-store'}).then(function(r){
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.json().then(function(j){
+      if(!j||!j.d)throw new Error('EMPTY');
+      return j.d;
+    });
+  });
+}
+
 /* ===== 视图切换 ===== */
 var writePage=document.getElementById('write-page'),readPage=document.getElementById('read-page');
-function showWrite(){writePage.style.display='flex';readPage.style.display='none';}
+function showWrite(){
+  writePage.style.display='flex';readPage.style.display='none';
+  // 从短链页切回写信页时,把地址栏复原成首页,免得刷新又回到信里
+  if(/\/s\/[a-zA-Z0-9]{4,24}\/?$/.test(location.pathname)){
+    try{history.replaceState(null,'','/');}catch(e){}
+  }
+}
 function showRead(){writePage.style.display='none';readPage.style.display='flex';}
 
 /* ===== Toast ===== */
@@ -488,10 +532,21 @@ document.getElementById('btn-submit').addEventListener('click',function(){
   var stickers=placedStickers.map(function(p){return {id:p.id,x:Math.round(p.x*10)/10,y:Math.round(p.y*10)/10,scale:p.scale,rot:Math.round(p.rot||0)};});
   var data={s:sender,r:receiver,c:content,t:stickers};
   var code=encodeLetter(data);
-  var url=location.origin+location.pathname+'?l='+code;
-  shareLink.textContent=url;shareWrap.style.display='block';
-  shareWrap.scrollIntoView({behavior:'smooth',block:'center'});
-  showToast('链接生成成功!🎉');
+  var btn=this,oldText=btn.textContent;
+  btn.disabled=true;btn.textContent='⏳ 正在生成...';
+  function finish(url,isShort){
+    shareLink.textContent=url;
+    shareWrap.style.display='block';
+    shareWrap.scrollIntoView({behavior:'smooth',block:'center'});
+    showToast(isShort?'短链接生成成功!🎉':'链接生成成功!🎉');
+    btn.disabled=false;btn.textContent=oldText;
+  }
+  saveLetterToKV(code,sender,receiver).then(function(id){
+    if(id){finish(location.origin+'/s/'+id,true);}
+    else{finish(location.origin+location.pathname+'?l='+code,false);}
+  }).catch(function(){
+    finish(location.origin+location.pathname+'?l='+code,false);
+  });
 });
 
 document.getElementById('btn-copy').addEventListener('click',function(){
@@ -519,23 +574,57 @@ var fullLetter=document.getElementById('full-letter'),fullMeta=document.getEleme
 var btnOpen=document.getElementById('btn-open'),btnReply=document.getElementById('btn-reply');
 var currentLetter=null;
 
-function loadLetter(){
-  var params=new URLSearchParams(location.search),code=params.get('l');
-  if(!code){showWrite();return;}
-  currentLetter=decodeLetter(code);
-  if(!currentLetter){showToast('这封信好像打不开,可能链接损坏了 😢');showWrite();return;}
+function applyLetterToReadPage(){
   showRead();
+  envelope.style.display='';
   envelope.classList.remove('opened');
   fullLetter.style.display='none';
   btnReply.style.display='none';
   musicToggle.style.display='none';
+  btnOpen.disabled=false;
   envReceiver.textContent=currentLetter.r+' 收';
   fullMeta.textContent='寄件人:'+currentLetter.s+' · 收件人:'+currentLetter.r;
   fullBody.textContent=currentLetter.c;
   fullSign.textContent='—— '+currentLetter.s;
 }
 
+function loadLetter(){
+  var params=new URLSearchParams(location.search);
+  // 新短链形式: /s/abc1234
+  var m=location.pathname.match(/\/s\/([a-zA-Z0-9]{4,24})\/?$/);
+  if(m){loadShortLetter(m[1]);return;}
+  var sid=params.get('i'),code=params.get('l');
+  if(sid){loadShortLetter(sid);return;}          // 兼容 ?i=xxx
+  if(!code){showWrite();return;}                  // 没参数 → 写信页
+  currentLetter=decodeLetter(code);               // 旧的长链接继续兼容
+  if(!currentLetter){showToast('这封信好像打不开,可能链接损坏了 😢');showWrite();return;}
+  applyLetterToReadPage();
+}
+
+function loadShortLetter(sid){
+  showRead();
+  envelope.style.display='';
+  envelope.classList.remove('opened');
+  fullLetter.style.display='none';
+  btnReply.style.display='none';
+  musicToggle.style.display='none';
+  btnOpen.disabled=true;
+  envReceiver.textContent='正在取信…';
+  loadLetterFromKV(sid).then(function(c){
+    var letter=decodeLetter(c);
+    if(!letter)throw new Error('DECODE_FAILED');
+    currentLetter=letter;
+    applyLetterToReadPage();
+  }).catch(function(){
+    currentLetter=null;
+    btnOpen.disabled=true;
+    envReceiver.innerHTML='<span style="font-size:15px;">这封信还没送到 😢</span><br><span style="font-size:12px;opacity:.8;">稍等几秒刷新一下试试</span>';
+    showToast('读取失败,请稍等几秒刷新重试~');
+  });
+}
+
 btnOpen.addEventListener('click',function(){
+  if(!currentLetter){showToast('信件还在路上,请稍等~');return;}
   envelope.classList.add('opened');
   startMusic();musicToggle.textContent='🎵';musicToggle.style.display='flex';
   setTimeout(function(){
@@ -569,7 +658,10 @@ btnReply.addEventListener('click',function(){
   if(currentLetter){senderInput.value='';receiverInput.value=currentLetter.s;contentInput.value='';countSpan.textContent='0';document.querySelectorAll('.canvas-sticker').forEach(function(e){e.remove();});placedStickers=[];updatePreview();}
 });
 document.getElementById('btn-again-read').addEventListener('click',function(){showWrite();});
-document.getElementById('btn-back-write').addEventListener('click',function(){if(location.search.indexOf('l=')>=0){showRead();}else{showWrite();}});
+document.getElementById('btn-back-write').addEventListener('click',function(){
+  var hasLetter=location.search.indexOf('l=')>=0||location.search.indexOf('i=')>=0||/\/s\/[a-zA-Z0-9]{4,24}\/?$/.test(location.pathname);
+  if(hasLetter){showRead();}else{showWrite();}
+});
 
 loadLetter();
 </script>
